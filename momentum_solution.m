@@ -53,3 +53,74 @@ datatable = sortrows(datatable, {'code', 'date'}, ...
 datatable = datatable(~isnan(datatable.lme), :);
 % Save the processed data
 save('return_m.mat', 'datatable');
+
+%% Part B - Momentum Analysis
+
+% Load the previously processed dataset
+load('return_m.mat');
+
+% User input for frequency of momentum analysis
+prompt = 'Enter the number of months for momentum analysis (1, 3, 6, 12, or 24): ';
+frequency = input(prompt);
+
+% Validate the user input
+valid_frequencies = [1, 3, 6, 12, 24];
+if ~ismember(frequency, valid_frequencies)
+    error('Invalid input. Please enter 1, 3, 6, 12, or 24.');
+end
+
+% Rest of the momentum analysis code
+% Group data by date and initialize variables
+[G, jdate] = findgroups(datatable.date);
+num_obs = length(jdate);
+datatable.jdate = G;
+
+% Loop for momentum calculation
+oldmomentum = table();
+tic % Start timer
+for i = frequency
+    j = i;
+    while j <= num_obs - i
+        temp_date = [];
+        temp_date_start = floor(j / i) * i - i + 1;
+        temp_date_end = floor(j / i) * i - i + i;
+        
+        % Creating a range of dates for analysis
+        while temp_date_start <= temp_date_end
+            temp_date = [temp_date, temp_date_start];
+            temp_date_start = temp_date_start + 1;
+        end
+
+        start_date = j + 1;
+        
+        % Finding indices of the dates that match with temp_date
+        index_i = ismember(datatable.jdate, temp_date);
+        index = any(index_i, 2);
+        
+        % Extracting a subset of data for the current date range
+        sample = datatable(index, 1:end);
+        
+        % Grouping data by 'code' and summing returns for each group
+        [G, code] = findgroups(sample.code);
+        pr_return = accumarray(G, sample.return_m, [], @sum);
+        pr_return_table = table(code, pr_return);
+
+        date_to_match = start_date;
+        rindex = datatable.jdate == date_to_match;
+        
+        % Merging the momentum data with the return data
+        rmomentum = datatable(rindex, :);
+        momentum_sample1 = outerjoin(rmomentum, pr_return_table, ...
+            'Keys', {'code'}, ...
+            'MergeKeys', true, ...
+            'Type', 'left');
+        
+        % Concatenating with previous momentum data
+        return_full = vertcat(oldmomentum, momentum_sample1);
+        oldmomentum = return_full;
+        
+        j = j + 1;
+    end
+end
+
+toc % End timer
