@@ -124,3 +124,17 @@ for i = frequency
 end
 
 toc % End timer
+
+% Calculate percentiles and create percentile matrix
+percentiles = 20:20:80;
+percentile_matrix = zeros(size(return_full, 1), length(percentiles));
+for i = 1:length(percentiles)
+    pct_val = prctile(return_full.pr_return, percentiles(i));
+    percentile_matrix(:, i) = pct_val * ones(size(return_full, 1), 1);
+end
+
+% Create a table for percentile data
+percentile_table = array2table(percentile_matrix, ...
+    'VariableNames', arrayfun(@(x) ['m' num2str(x)], percentiles, ...
+    'UniformOutput', false));
+return_full = [return_full, percentile_table];
